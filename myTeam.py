@@ -24,13 +24,18 @@ import random, time, util, sys
 from captureAgents import CaptureAgent
 from game import Directions
 from util import nearestPoint
+from util import manhattanDistance
+from util import PriorityQueue
+
 import math
 from distanceCalculator import manhattanDistance
 
 
-# DIGITAL DRAGONS SUBMISSION
+##############################
+# DIGITAL DRAGONS SUBMISSION #
+##############################
 
-#################
+
 # Team creation #
 #################
 
@@ -384,8 +389,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                     ghostToCap = min(self.get_maze_distance(cap, gp) for gp in valid_ghost_positions)
 
                 disToCap = self.get_maze_distance(cap, game_state.get_agent_position(self.index))
-                if disToCap < ghostToCap:
-                    return self.go_to_capsule(game_state)
+                if disToCap is not None and ghostToCap is not None:
+                    if disToCap < ghostToCap:
+                        return self.go_to_capsule(game_state)
 
         # Filter out actions leading to dead ends
         actions = [action for action in actions if not self.check_dead_end(game_state, action, 20)]
@@ -750,7 +756,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         """
         if self.power_mode:
             return {'successor_score': 150, 'distance_to_food': -10, 'reverse': -3, 'distance_to_op': -15,'dead': -200, 'dead_end': 0, 'eatenCap': 0}
-        return {'successor_score': 150, 'distance_to_food': -5, 'reverse': -3, 'distance_to_entry': -10,'dead': -200, 'dead_end': -100, 'eatenCap': 200}
+        return {'successor_score': 150, 'distance_to_food': -5, 'reverse': -3, 'distance_to_entry': -10,'dead': -200, 'dead_end': -150, 'eatenCap': 200}
 
     def evaluate(self, game_state, action, survival_mode):
         """
@@ -781,14 +787,12 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         # This value represents the desirability of the action
         return features * weights
 
-   
-
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
     def register_initial_state(self, game_state):
         self.start = game_state.get_agent_position(self.index)
         CaptureAgent.register_initial_state(self, game_state)
-        # self.init_food = self.get_food_you_are_defending(game_state).asList()
+        
         self.init_food = []
         food_grid = self.get_food_you_are_defending(game_state)  # Remaining food in the game
         # Iterate over the grid to count food items
@@ -815,11 +819,11 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 
         else:
             for central in range(
-                (game_state.data.layout.width - 2) / 2 + 1,
+                int((game_state.data.layout.width - 2) / 2) + 1,
                 game_state.data.layout.width,
                 1,
             ):
-                if not game_state.has_wall(central, height):
+                if not game_state.has_wall(int(central), int(height)):
                     central = int(central)
                     height = int(height)
 
@@ -919,7 +923,7 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         Returns:
         A list of actions that leads from the agent's current position to the destination.
         """
-        from util import PriorityQueue
+        
 
         # Initialize data structures for A* search
         visited, movements, costs, start_cost = [], {}, {}, 0
@@ -966,8 +970,7 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         """
         Use Manhattan distance to calculate the heuristic distance.
         """
-        from util import manhattanDistance
-
+        
         dist = manhattanDistance(loc, destination)
         return dist
 
@@ -1079,10 +1082,16 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
             )
 
         # eat food
-        food_list = self.get_food(succGame_state).asList()
+        food_list = []
+        food_grid = self.get_food(game_state)
+        # Construct a list of food positions
+        for x in range(food_grid.width):
+            for y in range(food_grid.height):
+                if food_grid[x][y]:  # Check if there is food at (x, y)
+                    food_list.append((x, y))
         features["remainFood"] = len(food_list)
 
-        if len(food_list) > 0:  # This should always be True,  but better safe than sorry
+        if len(food_list) > 0:  
             features["distanceToFood"] = min(
                 [self.get_maze_distance(succPos, food) for food in food_list]
             )
